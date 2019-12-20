@@ -72,9 +72,15 @@ export default {
           enabled: true,
           duration: 400,
           createElement: function (item) {
-            return item.getElement().cloneNode(true);
+            let placeholder = item.getElement().cloneNode();
+            let placeholderCont = document.createElement('div');
+            placeholderCont.style.height = '100%';
+            placeholderCont.style.border = '2px dashed #333';
+            placeholder.appendChild(placeholderCont);
+            return placeholder;
           }
-        }
+        },
+        resizeEnabled: true
       }
     }
   },
