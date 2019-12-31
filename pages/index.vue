@@ -1,13 +1,13 @@
 <template>
-  <div id="home" class="pos-relative txt-center full">
-    <div class="searchbar d-flex">
-      <b-form-input class="search-btn" v-model="text" placeholder="筛选" @input="filter"></b-form-input>
-      <b-button class="add-btn" variant="success" @click="addItem">新增</b-button>
+  <div id="home" class="pos-relative full">
+    <div class="data-display">
+      {{layout}}
     </div>
-    <Muuri-grid :options="options" :gutter="20" @loaded="gridLoaded">
-      <Muuri-item :ref="name" v-for="{name, width, height, html} in b" :key="name" :tag="name" :width="width" :height="height">
-        <div class="close" @click="remove(name)"><i class="iconfont icontubiaoqietu_fuzhi_quxiao"></i></div>
-        <component :is="html"></component>
+    <Muuri-grid v-model="layout" :options="options" :gutter="20" @loaded="gridLoaded">
+      <Muuri-item v-for="{tag, span, row} in layout" 
+        :key="tag" :tag="tag" :span="span" :row="row">
+        <div class="close" @click="remove(tag)"><i class="iconfont icontubiaoqietu_fuzhi_quxiao"></i></div>
+        <div class="box full">{{tag}}</div>
       </Muuri-item>
     </Muuri-grid>
   </div>
@@ -16,58 +16,40 @@
 <script>
 import { MuuriGrid, MuuriItem } from '~/components/muuri';
 
-const widths = ['20%', '25%', '30%', '40%']
-const heights = ['50px', '60px', '80px', '100px'];
-const colors = ['#F94A7A', '#2AC06D', '#50A2F9', '#FDCF52'];
-let num = 0;
-
-function createItem() {
-  let index = Math.floor(Math.random() * 4);
-  let width = widths[index];
-  let height = heights[index];
-  let color = colors[index];
-  let randomTxt = width + String.fromCharCode(65 + num);
-  num ++;
-  return {
-    name: randomTxt,
-    width,
-    height,
-    html: {
-      render(h) {
-        return h('div', {
-          class: 'item full',
-          style: {
-            borderColor: color,
-            color: color 
-          }
-        }, randomTxt)
-      }
-    }
-  }
-}
-
 export default {
   async asyncData({$axios}) {
-    return {
-      a: [
-        1, 2, 3, 4, 5, 6, 7, 8, 9
-      ]
-    }
+    return {};
   },
   data() {
     return {
-      b: [],
-      text: '',
+      layout: [
+        {
+          tag: 'A',
+          span: 12,
+          row: 10
+        },
+        {
+          tag: 'B',
+          span: 12,
+          row: 10,
+          height: 200
+        }
+      ],
       options: {
         showEasing: 'cubic-bezier(0.215, 0.61, 0.355, 1)',
         layoutDuration: 400,
         layoutEasing: 'ease',
+        // layout: {
+        //   round: false
+        // },
         dragEnabled: true,
         dragSortHeuristics: {
           sortInterval: 50,
           minDragDistance: 10,
           minBounceBackAngle: 1
         },
+        dragReleaseDuration: 400,
+        dragReleaseEasing: 'ease',
         dragPlaceholder: {
           enabled: true,
           duration: 400,
@@ -75,35 +57,23 @@ export default {
             let placeholder = item.getElement().cloneNode();
             let placeholderCont = document.createElement('div');
             placeholderCont.style.height = '100%';
-            placeholderCont.style.border = '2px dashed #333';
+            placeholderCont.style.border = '2px dashed #ccc';
             placeholder.appendChild(placeholderCont);
             return placeholder;
           }
         },
         resizeEnabled: true
-      }
+      },
     }
   },
   mounted() {
-    this.b = [0, 1, 2, 3].map(n => createItem());
   },
   methods: {
     gridLoaded(instance) {
-      this._grid = instance;
+      
     },
-    filter() {
-      this._grid.filter(item => {
-        let element = item.getElement();
-        let tag = element.getAttribute('data-tag');
-        return tag.indexOf(this.text) > -1;
-      });
-    },
-    remove(name) {
-      this.b = this.b.filter(item => item.name !== name);
-    },
-    addItem() {
-      let newItems = [0, 1, 2, 3].map(n => createItem());
-      this.b = this.b.concat(newItems);
+    remove(tag) {
+      this.layout = this.layout.filter(item => item.tag !== tag);
     }
   },
   components: {
@@ -116,7 +86,11 @@ export default {
 <style lang="scss" scoped>
 #home {
   padding: 40px 40px;
-  height: 1000px;
+  height: 100%;
+  overflow-x: hidden;
+  .data-display {
+    margin-bottom: 20px;
+  }
   .searchbar {
     margin-bottom: 20px;
     justify-content: space-between;
@@ -134,13 +108,13 @@ export default {
     font-size: 24px;
     cursor: pointer;
   }
-  /deep/.item {
-    border: 2px solid;
-    border-radius: 4px;
-    line-height: 50px;
+  /deep/.box {
+    color: #409eff;
+    line-height: 200px;
     font-size: 24px;
-    font-weight: 300;
     text-align: center;
+    border: 2px solid #409eff;
+    border-radius: 4px;
   }
 }
 </style>

@@ -13,7 +13,7 @@
         <nuxt />
       </div>
     </div>
-    <Message></Message>
+    <!-- <Message></Message> -->
   </div>
 </template>
 

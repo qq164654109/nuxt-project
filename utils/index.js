@@ -55,4 +55,4 @@ export function throttle(func, delay) {
           timer = setTimeout(func, remaining);              
       }      
   }
-};
+}

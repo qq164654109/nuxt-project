@@ -1,6 +1,6 @@
 export const state = () => ({
   halfscreen: false,
-  fullscreen: false,
+  fullscreen: true,
 });
 
 export const mutations = {

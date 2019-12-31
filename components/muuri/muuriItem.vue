@@ -1,5 +1,5 @@
 <template>
-  <div class="muuri-item" :data-tag="tag" :style="itemStyle">
+  <div class="muuri-item" :data-tag="tag" :style="{...itemSize, ...itemPadding}">
     <div ref="itemCont" class="muuri-item-content">
       <slot></slot>
       <div v-if="isAllowResize" class="muuri-resize-btn" @mousedown="isAllowResize && startResize($event)"></div>
@@ -9,20 +9,21 @@
 
 <script>
   import { debounce } from '~/utils';
+  import { cols, spanPec, getValidResizeSpan, getValidResizeRow } from './utils';
 
   export default {
     props: {
       tag: {
-        type: String,
-        default: ''
+        type: [Number, String],
+        required: true
       },
-      width: {
-        type: String,
-        default: '120px'
+      span: {
+        type: Number,
+        default: 1
       },
-      height: {
-        type: String,
-        default: '60px'
+      row: {
+        type: Number,
+        default: 1
       },
       minWidth: {
         type: String,
@@ -32,10 +33,10 @@
         type: String,
         default: '40px'
       },
-      dragEnabled: {
-        type: Boolean,
-        default: true
-      },
+      // dragEnabled: {
+      //   type: Boolean,
+      //   default: true
+      // },
       resizeEnabled: {
         type: Boolean,
         default: true
@@ -51,19 +52,19 @@
     mounted() {
       let items = this.$parent._grid.add(this.$el);
       this._item = items[0];
-      this._item.isDraggable = () => {
-        return this.isAllowDrag;
-      }
+      this._item.setTag(this.tag);
     },
     methods: {
       startResize(e) {
         e.preventDefault();
         e.stopPropagation();
 
-        this._item.isDraggable = () => false;
+        if (e.button !== 0) return;
 
-        document.body.style.cursor = 'se-resize';
-
+        this._item.setDraggable(false);
+        // 添加手势样式
+        document.body.classList.add('muuri-is-dragging');
+  
         let gridWrap = this.$parent._grid.getElement();
         this._resizePlacehoder = this.$el.cloneNode();
         this._resizePlacehoder.className = 'muuri-resize-placehoder';
@@ -72,14 +73,17 @@
         resizePlacehoderCont.style.background = '#ebebeb';
         this._resizePlacehoder.appendChild(resizePlacehoderCont);
         gridWrap.appendChild(this._resizePlacehoder);
-        this.$el.style.opacity = 0.5;
 
+        this.$el.classList.add('muuri-item-resizing');
+        
+        this._spanWidth = spanPec * gridWrap.offsetWidth;
         this._startPos = {
           x: e.clientX,
           y: e.clientY,
         };
         this._startWidth = this.$el.offsetWidth; 
-        this._startHeight = this.$el.offsetHeight; 
+        this._startHeight = this.$el.offsetHeight;
+
         document.addEventListener('mousemove', this.moveResize);
         document.addEventListener('mouseup', this.endResize);
       },
@@ -90,17 +94,21 @@
           x: e.clientX,
           y: e.clientY,
         };
-        this._disX = this._movePos.x - this._startPos.x;
-        this._disY = this._movePos.y - this._startPos.y;
+        this._disWidth = this._movePos.x - this._startPos.x;
+        this._disHeight = this._movePos.y - this._startPos.y;
 
-        let resizeWidth = this._startWidth + this._disX;
-        let resizeHeight = this._startHeight + this._disY;
+        let resizeWidth = this._startWidth + this._disWidth;
+        let resizeHeight = this._startHeight + this._disHeight;
 
         let validResizeWidth = resizeWidth < parseInt(this.minWidth) ? parseInt(this.minWidth) : resizeWidth;
         let validResizeHeight = resizeHeight < parseInt(this.minHeight) ? parseInt(this.minHeight) : resizeHeight;
         
-        this._resizePlacehoder.style.width = validResizeWidth + 'px';
-        this._resizePlacehoder.style.height = validResizeHeight + 'px';
+        this._validResizeSpan = getValidResizeSpan(this.span, this._disWidth, this._spanWidth);
+        this._validResizeRow = getValidResizeRow(this.row, this._disHeight, this.rowHeight);
+        
+        this._resizePlacehoder.style.width = this.getWidth(this._validResizeSpan);
+        this._resizePlacehoder.style.height = this.getHeight(this._validResizeRow);
+
         this.$el.style.width = validResizeWidth + 'px';
         this.$el.style.height = validResizeHeight + 'px';
 
@@ -113,21 +121,30 @@
           this.$parent._grid.getElement().removeChild(this._resizePlacehoder);
           this._resizePlacehoder = null;
         }
-        this.$el.style.opacity = 1;
-        document.body.style.cursor = 'auto';
+        this.$parent.updateItem({
+          tag: this.tag,
+          span: this._validResizeSpan,
+          row: this._validResizeRow
+        });
+        
+        this.$el.classList.remove('muuri-item-resizing');
+
+        this.refreshLayout();
+
+        document.body.classList.remove('muuri-is-dragging');
         document.removeEventListener('mousemove', this.moveResize);
         document.removeEventListener('mouseup', this.endResize);
-        this._item.isDraggable = () => {
-          return this.isAllowDrag;
-        }
+        this._item.setDraggable(true);
       },
       refreshLayout() {
-        this.$parent._grid.refreshItems(this._item);
-        this._startTransform = this.$el.style.transform;
-        this.$parent._grid.layout(() => {
-          cancelAnimationFrame(this._listenLayoutFrame);
-        }); 
-        this._listenLayoutFrame = requestAnimationFrame(this.observeTransChange);
+        this.$nextTick(() => {
+          this.$parent._grid.refreshItems(this._item);
+          this._startTransform = this.$el.style.transform;
+          this.$parent._grid.layout(() => {
+            cancelAnimationFrame(this._listenLayoutFrame);
+          }); 
+          this._listenLayoutFrame = requestAnimationFrame(this.observeTransChange);
+        });
       },
       observeTransChange() {
         if (this._startTransform !== this.$el.style.transform) {
@@ -136,20 +153,37 @@
         } else {
           this._listenLayoutFrame = requestAnimationFrame(this.observeTransChange);
         }
+      },
+      getWidth(span) {
+        return (span / cols * 100).toFixed(5) + '%';
+      },
+      getHeight(row) {
+        return row * this.rowHeight + 'px';
       }
     },
     computed: {
+      model() {
+        return this.$parent.value;
+      },
       gutter() {
         let parent = this.$parent;
         return parent ? parent.gutter : 0;
       },
-      itemStyle() {
+      rowHeight() {
+        let parent = this.$parent;
+        return parent ? parent.rowHeight : 0;
+      },
+      itemSize() {
         return { 
-          width: this.width, 
-          height: this.height, 
+          width: this.getWidth(this.span), 
+          height: this.getHeight(this.row)
+        };
+      },
+      itemPadding() {
+        return {
           paddingLeft: this.gutter / 2 + 'px', 
           paddingRight: this.gutter / 2 + 'px'
-        };
+        }
       },
       isAllowDrag() {
         return this.$parent.options.dragEnabled && this.dragEnabled;
@@ -172,8 +206,11 @@
   .muuri-item {
     position: absolute;
     display: block;
-    margin-bottom: 20px;
+    margin-bottom: 10px;
     z-index: 1;
+    &.muuri-item-resizing {
+      opacity: 0.5;
+    }
     &.muuri-item-dragging {
       z-index: 3;
     }
@@ -181,7 +218,6 @@
       z-index: 2;
     }
     &.muuri-item-placeholder {
-      opacity: 0.4;
       margin: 0 !important;
       z-index: 1;
     }
