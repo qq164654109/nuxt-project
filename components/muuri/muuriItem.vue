@@ -67,6 +67,7 @@
   
         let gridWrap = this.$parent._grid.getElement();
         this._resizePlacehoder = this.$el.cloneNode();
+        this._resizePlacehoder.style.transition = 'all .26s';
         this._resizePlacehoder.className = 'muuri-resize-placehoder';
         let resizePlacehoderCont = document.createElement('div');
         resizePlacehoderCont.style.height = '100%';
